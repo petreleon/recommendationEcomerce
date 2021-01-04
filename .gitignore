@@ -127,3 +127,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+Gift_Cards.csv
+ratings_Books.csv
