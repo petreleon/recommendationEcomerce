@@ -19,15 +19,12 @@ def addRating(userID, productID, rating):
     global sum_, iterations
     if userID not in userRatings.keys():
         userRatings[userID] = dict()
-    if productID not in productRatings:
-        productRatings[productID] = dict()
     if productID in userRatings[userID].keys():
         sum_ += rating - userRatings[userID][productID]
     else:
         sum_ += rating
         iterations += 1
     userRatings[userID][productID] = rating
-    productRatings[productID][userID] = rating
 
 def deleteRating(userID, productID):
     global sum_, iterations
@@ -35,7 +32,6 @@ def deleteRating(userID, productID):
         if productID in userRatings[userID].keys():
             sum_ -= userRatings[userID][productID]
             del userRatings[userID][productID]
-            del productRatings[productID][userID]
 
 
 userRatings_update = {
@@ -112,24 +108,26 @@ def rootMeanSquaredError(predictions: list, realities: list):
 # print(rootMeanSquaredError([1,3],[2,4]))
 
 list_of_ratings = list()
-with open('ratings_Books.csv') as csv_file:
+with open('Gift_Cards.csv') as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
-    for row in csv_reader:
+    for index, row in enumerate(csv_reader):
+        if index == 100000:
+            break
         try:
             list_of_ratings.append((row[0], row[1], float(row[2])))
         except:
             print(row)
 
-list_of_ratings = list_of_ratings[:100000]
+# list_of_ratings = list_of_ratings
 random.shuffle(list_of_ratings)
 splitter = len(list_of_ratings)*70//100
 train, test = list_of_ratings[:splitter], list_of_ratings[splitter:]
-for user,product,rating in train:
+for product,user,rating in train:
     addRating(user, product, rating)
 
 print(iterations)
 
-prediction = [getPrediction2(user, product) for user, product, _ in test]
+prediction = [getPrediction2(user, product) for product, user, _ in test]
 prediction_test = [real_value for _, _, real_value in test]
 random_prediction = [random.randint(1,5) for _ in range(len(test))] 
 print(rootMeanSquaredError(prediction, prediction_test))
