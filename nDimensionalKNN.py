@@ -11,7 +11,7 @@ iterations = 0
 
 def sum_perIterations():
     return sum_/iterations
-K=10
+K=20
 userRatings = dict()
 productRatings = dict()
 
@@ -106,29 +106,34 @@ def getPrediction2(userID, productID):
 def rootMeanSquaredError(predictions: list, realities: list):
     return math.sqrt(mean([(prediction-reality)**2 for prediction, reality in zip(predictions, realities)]))
 # print(rootMeanSquaredError([1,3],[2,4]))
+if __name__ == '__main__':
+    list_of_ratings = list()
+    with open('ratings_Books.csv') as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        for index, row in enumerate(csv_reader):
+            if index == 100000:
+                break
+            try:
+                list_of_ratings.append((row[0], row[1], float(row[2])))
+            except:
+                print(row)
 
-list_of_ratings = list()
-with open('Gift_Cards.csv') as csv_file:
-    csv_reader = csv.reader(csv_file, delimiter=',')
-    for index, row in enumerate(csv_reader):
-        if index == 100000:
-            break
-        try:
-            list_of_ratings.append((row[0], row[1], float(row[2])))
-        except:
-            print(row)
+    # list_of_ratings = list_of_ratings
+    random.shuffle(list_of_ratings)
+    splitter = len(list_of_ratings)*70//100
+    train, test = list_of_ratings[:splitter], list_of_ratings[splitter:]
+    for product,user,rating in train:
+        addRating(user, product, rating)
 
-# list_of_ratings = list_of_ratings
-random.shuffle(list_of_ratings)
-splitter = len(list_of_ratings)*70//100
-train, test = list_of_ratings[:splitter], list_of_ratings[splitter:]
-for product,user,rating in train:
-    addRating(user, product, rating)
+    print(iterations)
 
-print(iterations)
-
-prediction = [getPrediction2(user, product) for product, user, _ in test]
-prediction_test = [real_value for _, _, real_value in test]
-random_prediction = [random.randint(1,5) for _ in range(len(test))] 
-print(rootMeanSquaredError(prediction, prediction_test))
-print(rootMeanSquaredError(random_prediction, prediction_test))
+    print("Random")
+    prediction_test = [real_value for _, _, real_value in test]
+    random_prediction = [random.randint(1,5) for _ in range(len(test))]
+    print(rootMeanSquaredError(random_prediction, prediction_test))
+    print()
+    print("KNN")
+    for K in range(1, 101):
+        print("K =", K)
+        prediction = [getPrediction2(user, product) for product, user, _ in test]
+        print(rootMeanSquaredError(prediction, prediction_test))
