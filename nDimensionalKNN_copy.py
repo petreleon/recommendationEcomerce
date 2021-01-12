@@ -136,6 +136,25 @@ def average():
         }
     }]))[0]["average"]
 
+# recomandările bazate pe produs
+# găsește reviewurile pozitive despre un produs
+# Fă o listă de utilizatori care au dat reviewuri pozitive despre produsul respectiv
+# găsește alte reviewuri pozitive date de utilizatorii găsiți
+
+def recommendationOfProductsByProduct(product, firstK = 5):
+    reviews = list(collection.aggregate([{
+        "$match":{
+            "product": product, "rating" : {"$gte": 4}
+        }
+    }]))
+    users = [review["user"] for review in reviews] 
+    foundReviews = list(collection.aggregate([{
+        "$match":{
+            "user": {"$in":users}, "rating" : {"$gte": 4}
+        }
+    }]))
+    #de ordonat foundReviews după media lor aritmetică
+
 # print(rootMeanSquaredError([1,3],[2,4]))
 import pprint
 if __name__ == '__main__':
@@ -143,8 +162,8 @@ if __name__ == '__main__':
     with open('ratings_Books.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for index, row in enumerate(csv_reader):
-            # if index == 1000000:
-            #     break
+            if index == 100000:
+                break
             try:
                 list_of_ratings.append({"product":row[0], "user":row[1], "rating":float(row[2])})
             except:
