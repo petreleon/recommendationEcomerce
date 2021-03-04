@@ -6,6 +6,7 @@ from statistics import mean
 import csv
 import random
 import pymongo
+import time
 
 client = pymongo.MongoClient('mongodb://localhost:27017/')
 db = client.testing_database
@@ -47,6 +48,30 @@ def deleteRating(userID, productID):
             sum_ -= userRatings[userID][productID]
             del userRatings[userID][productID]
             iterations -= 1
+
+def addRatingDB(userID, productID, rating):
+    find = {"product":productID, "user":userID}
+    update = {"$set": {"product":productID, "user":userID, "rating":rating}}
+    return collection.update_one(find, update, upsert=True)
+
+def deleteRatingDB(userID, productID):
+    find = {"product":productID, "user":userID}
+    collection.delete_one(find)
+
+def getRatingDB(userID, productID):
+    find = {"product":productID, "user":userID}
+    found = collection.find_one(find)
+    return found
+
+def getRatingsByUser():
+    find = {"user":user}
+    found = collection.find(find)
+    return found
+
+def getRatingsByProduct():
+    find = {"product":product}
+    found = collection.find(find)
+    return found    
 
 def deleteAll():
     global sum_, iterations, userRatings
@@ -95,7 +120,7 @@ def getKNearestNeighbors(userID, filter_ = lambda X: X):
                 pass
     return sorted(distanceDict.keys(), key=lambda X: distanceDict[X])[:K]
 
-def getNRecommendationsFromKNN(userID, numberOfRecommendations):
+def getNRecommendationsFromKNN(userID, numberOfRecommendations = 5):
     KNN = getKNearestNeighbors(userID)
     possibleProducts = set()
     possibleProductsDict = dict()
@@ -141,28 +166,169 @@ def average():
 # Fă o listă de utilizatori care au dat reviewuri pozitive despre produsul respectiv
 # găsește alte reviewuri pozitive date de utilizatorii găsiți
 
+def getMaxNuberOfReviews():
+    return list(collection.aggregate([
+        {
+            "$group":{
+                "_id":"$product",
+                "count": {"$sum": 1}
+            }
+        },{
+            "$group":{
+                "_id":1,
+                "maxCount": {"$max": "$count"}
+            }
+        }
+    ]))[0]["maxCount"]
+
+def deleteDB():
+    collection.delete_many({})
+
 def recommendationOfProductsByProduct(product, firstK = 5):
+    maxNumberOfReviews = getMaxNuberOfReviews()
     reviews = list(collection.aggregate([{
         "$match":{
-            "product": product, "rating" : {"$gte": 4}
+            "product": product, "rating": {"$gte": 3}
         }
     }]))
     users = [review["user"] for review in reviews] 
     foundReviews = list(collection.aggregate([{
         "$match":{
-            "user": {"$in":users}, "rating" : {"$gte": 4}
+            "user": {"$in": users}, "rating": {"$gte": 3}, "product": {"$ne": product}
         }
     }]))
-    #de ordonat foundReviews după media lor aritmetică
+    #de ordonat produsele din foundReviews după media lor aritmetică
+    related_products = list(set([review["product"] for review in foundReviews]))
+    products_ordered = [product["_id"] for product in list(collection.aggregate([
+        {
+            "$match": {"product":{"$in":related_products}}
+        },{
+            "$group": {
+                "_id":"$product",
+                "mean":{"$avg":"$rating"}
+            }
+        },{
+            "$sort": {"mean":-1}
+        },{
+            "$limit": firstK
+        }
+    ]))]
+    len_products = len(products_ordered)
+    #cele mai populare produse
+    if len_products < firstK:
+        products_ordered += [product["_id"] for product in list(collection.aggregate([
+        {
+            "$match": {"product":{"$nin":products_ordered}}
+        },{
+            "$group": {
+                "_id":"$product",
+                "mean":{"$avg":"$rating"},
+                "count":{"$sum":1}
+            }
+        },{
+            "$project": {
+                "computation": {
+                    "$add":[
+                        {
+                            "$multiply":[
+                                {
+                                    "$divide":[
+                                        "$count",
+                                        maxNumberOfReviews
+                                    ]
+                                },
+                                2
+                            ]
+                        },{
+                            "$multiply":[
+                                {
+                                    "$divide":[
+                                        "$rating",
+                                        5
+                                    ]
+                                },
+                                4
+                            ]
+                        }
+                    ]
+                }
+            }
+        },{
+            "$sort": {"mean":-1}
+        },{
+            "$limit": firstK - len_products
+        }
+    ]))]
+    return products_ordered
+
+def recommendationOfProductsByUser(user, firstK = 5):
+    maxNumberOfReviews = getMaxNuberOfReviews()
+    products = [review['product'] for review in list(collection.aggregate([
+        {"$match":{"user":user}},
+    ]))]
+    reviews = list(collection.aggregate([
+        {"$match":{"user":{"$ne": user}, "product":{"$in":products}}},
+    ]))
+    for review in reviews:
+        addRating(review["user"], review["product"], review["rating"])
+    products = getNRecommendationsFromKNN(user, firstK)
+    deleteAll()
+    len_products = len(products)
+    if len_products < firstK:
+        products += [product["_id"] for product in list(collection.aggregate([
+            {
+                "$match": {"product":{"$nin":products}}
+            },{
+                "$group": {
+                    "_id":"$product",
+                    "mean":{"$avg":"$rating"},
+                    "count":{"$sum":1}
+                }
+            },{
+                "$project": {
+                    "computation": {
+                        "$add":[
+                            {
+                                "$multiply":[
+                                    {
+                                        "$divide":[
+                                            "$count",
+                                            maxNumberOfReviews
+                                        ]
+                                    },
+                                    2
+                                ]
+                            },{
+                                "$multiply":[
+                                    {
+                                        "$divide":[
+                                            "$rating",
+                                            5
+                                        ]
+                                    },
+                                    4
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },{
+                "$sort": {"mean":-1}
+            },{
+                "$limit": firstK - len_products
+            }
+        ]))]
+ 
 
 # print(rootMeanSquaredError([1,3],[2,4]))
 import pprint
 if __name__ == '__main__':
+    deleteDB()
     list_of_ratings = list()
     with open('ratings_Books.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for index, row in enumerate(csv_reader):
-            if index == 100000:
+            if index == 1000000:
                 break
             try:
                 list_of_ratings.append({"product":row[0], "user":row[1], "rating":float(row[2])})
@@ -181,10 +347,12 @@ if __name__ == '__main__':
     average_value = average()
     prediction_list = []
     real_list = []
+    time_start = time.process_time()
     for review in test:
         # print(average())
         product, user, rating = review['product'], review['user'], review['rating']
         real_list.append(rating)
+        # pprint.pprint(recommendationOfProductsByProduct(product))
         users = [review['user'] for review in list(collection.aggregate([
             {"$match":{"product":product}},
         ]))]
@@ -214,3 +382,6 @@ if __name__ == '__main__':
             deleteAll()
         # pprint.pprint(related_reviews)
     print("RMSE:", rootMeanSquaredError(real_list, prediction_list))
+    time_elapsed = (time.process_time() - time_start)
+    print("Time elapsed:", time_elapsed)
+

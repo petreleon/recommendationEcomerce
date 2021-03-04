@@ -1,6 +1,3 @@
-#include <emscripten.h>
-#include <emscripten/bind.h>
-#include <emscripten/val.h>
 #include <string>
 #include <vector>
 #include <numeric>
@@ -12,7 +9,6 @@
 #include <set>
 #include <cstdio>
 using namespace std;
-using namespace emscripten;
 
 int count = 0;
 double sumOfRatings = 0;
@@ -94,25 +90,8 @@ double estimation(const string& User, const string& Product){
     return mean();
 }
 
-int sum(const val& list_) {
-    vector<int> list = convertJSArrayToNumberVector<int>(list_);
-    return std::accumulate(list.begin(), list.end(), 0);
-}
 
-val getEstimations(const val &estimationsRequest){
-    vector<val>arrayOfEstimationsRequest = vecFromJSArray<val>(estimationsRequest);
-    vector<vector<string>> CPPFormatOfEstimationRequest;
-    for(val &iterator: arrayOfEstimationsRequest){
-        CPPFormatOfEstimationRequest.push_back(vecFromJSArray<string>(iterator));
-    }
-    vector<double> estimations(arrayOfEstimationsRequest.size());
-
-    return val::array(estimations);
-}
-
-double rmse(const val& list_1, const val& list_2) {
-    vector<double> list1 = convertJSArrayToNumberVector<double>(list_1);
-    vector<double> list2 = convertJSArrayToNumberVector<double>(list_2);
+double rmse(const vector<double>& list1, const vector<double>& list2) {
     double sum_ = 0;
     for(std::size_t iterator = 0; iterator < list1.size(); iterator++){
         sum_ += pow(list1[iterator] - list2[iterator], 2);
@@ -121,10 +100,8 @@ double rmse(const val& list_1, const val& list_2) {
 }
 
 int init(int howMany){
-    EM_ASM(
-        FS.mkdir('/temp');                         // (1)
-        FS.mount(NODEFS, {root : '.'}, '/temp');); // (2)
-    ifstream input("/temp/ratings_Books.csv");
+
+    ifstream input("ratings_Books.csv");
     double sum_squared_errors = 0;
     
     string line;
@@ -134,7 +111,7 @@ int init(int howMany){
     string User;
     int Counting = 0;
     while(getline(input, line)) {
-        if (Counting++ >= howMany) break;
+        if (Counting++ >= howMany*7/10) break;
         sscanf(line.c_str(), "%[^,],%[^,],%f,%*s", Product_C, User_C, &rating);
         Product = Product_C;
         User = User_C;
@@ -144,22 +121,27 @@ int init(int howMany){
         // cout << rating << endl;
         addRating(Product, User, rating);
     }
+    vector<double> estimationVector, realityVector;
+    
+    Counting = 0;
+    while(getline(input, line)) {
+        if (Counting++ >= howMany*3/10) break;
+        sscanf(line.c_str(), "%[^,],%[^,],%f,%*s", Product_C, User_C, &rating);
+        Product = Product_C;
+        User = User_C;
+        // cout << User << endl;
+        // cout << Product <<endl;
+        // cout << line <<endl;
+        // cout << rating << endl;
+        // addRating(Product, User, rating);
+        estimationVector.push_back(estimation(User, Product));
+        realityVector.push_back(rating);
+    }
+    cout<<"RMSE: "<<rmse(estimationVector, realityVector)<<endl;
     return ::count;
 }
 
-EMSCRIPTEN_BINDINGS(my_module) {
-    emscripten::function("sum", &sum);
-    emscripten::function("rmse", &rmse);
-    emscripten::function("getEstimations", &getEstimations);
-    emscripten::function("addRating", &addRating);
-    emscripten::function("deleteRating", &deleteRating);
-    emscripten::function("mean", &mean);
-    emscripten::function("init", &init);
-
-    
-    emscripten::register_vector<double>("vector<double>");
-    emscripten::register_vector<string>("vector<string>");
-    emscripten::register_vector<vector<string>>("vector<vector<string>>");
-    emscripten::register_vector<pair<string, string>>("vector<pair<string, string>>");
-
+int main(){
+    cout<<init(1000000)<<endl;
+    return 0;
 }
