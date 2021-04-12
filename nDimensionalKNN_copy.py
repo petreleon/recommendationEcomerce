@@ -56,22 +56,31 @@ def addRatingDB(userID, productID, rating):
 
 def deleteRatingDB(userID, productID):
     find = {"product":productID, "user":userID}
-    collection.delete_one(find)
+    return collection.delete_one(find)
 
 def getRatingDB(userID, productID):
     find = {"product":productID, "user":userID}
     found = collection.find_one(find)
     return found
 
-def getRatingsByUser():
+def getRatingsByUser(user):
     find = {"user":user}
     found = collection.find(find)
     return found
 
-def getRatingsByProduct():
+def deleteRatingByUser(userID):
+    find = {"user":userID}
+    return collection.delete_many(find)
+
+def getRatingsByProduct(product):
     find = {"product":product}
     found = collection.find(find)
-    return found    
+    return found   
+
+def deleteRatingByProduct(product):
+    find = {"product":product}
+    return collection.delete_many(find)
+ 
 
 def deleteAll():
     global sum_, iterations, userRatings
@@ -325,7 +334,7 @@ import pprint
 if __name__ == '__main__':
     deleteDB()
     list_of_ratings = list()
-    with open('ratings_Books.csv') as csv_file:
+    with open('All_Beauty.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for index, row in enumerate(csv_reader):
             if index == 1000000:
