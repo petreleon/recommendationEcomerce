@@ -7,6 +7,7 @@ import csv
 import random
 import pymongo
 import time
+random.seed(42)
 
 client = pymongo.MongoClient('mongodb://localhost:27017/')
 db = client.testing_database
