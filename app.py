@@ -3,7 +3,8 @@ import sys
 from flask import Flask
 from flask import request
 from flask_cors import CORS
-
+from bson.json_util import dumps
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -56,16 +57,16 @@ def getRatingRoute():
         user = data['user']
         product = data['product']
         responseDB = getRatingDB(user, product)
-        return responseDB
+        return dumps(responseDB)
     if 'user' in data:
         user = data['user']
         responseDB = getRatingsByUser(user)
-        return responseDB
+        return dumps(responseDB)
 
     if 'product' in data:
         product = data['product']
-        responseDB = getRatingsByUser(product)
-        return responseDB
+        responseDB = getRatingsByProduct(product)
+        return dumps(responseDB)
     
     return {
             "error":"No user and/or product specified"
@@ -80,16 +81,15 @@ def deleteRatingRoute():
         user = data['user']
         product = data['product']
         responseDB = deleteRatingDB(user, product)
-        return responseDB 
+        return dumps(responseDB.raw_result)
     if 'user' in data:
         user = data['user']
         responseDB = deleteRatingByUser(user)
-        return responseDB
-
+        return dumps(responseDB.raw_result)
     if 'product' in data:
         product = data['product']
         responseDB = deleteRatingByProduct(product)
-        return responseDB
+        return dumps(responseDB.raw_result)
     
     return {
             "error":"No user and/or product specified"
@@ -97,7 +97,7 @@ def deleteRatingRoute():
 
 @app.route('/rating', methods=['POST', 'PUT'])
 def addRatingRoute():
-    data = request.json
+    data = json.loads(request.data.decode('UTF-8'))
     try:
         user = data['user']
     except:
@@ -122,7 +122,7 @@ def addRatingRoute():
         return {
             "error":"adding not allowed"
         }
-    return dataToReturn
+    return dumps(dataToReturn.raw_result)
 
     
 if __name__ == '__main__':
