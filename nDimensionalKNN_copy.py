@@ -132,6 +132,8 @@ def getKNearestNeighbors(userID, filter_ = lambda X: X):
 
 def getNRecommendationsFromKNN(userID, numberOfRecommendations = 5):
     KNN = getKNearestNeighbors(userID)
+    if len(KNN) == 0:
+        return []
     possibleProducts = set()
     possibleProductsDict = dict()
     for neighbor in KNN:
@@ -328,6 +330,7 @@ def recommendationOfProductsByUser(user, firstK = 5):
                 "$limit": firstK - len_products
             }
         ]))]
+    return products
  
 
 # print(rootMeanSquaredError([1,3],[2,4]))

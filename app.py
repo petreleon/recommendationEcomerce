@@ -92,8 +92,8 @@ def deleteRatingRoute():
         return dumps(responseDB.raw_result)
     
     return {
-            "error":"No user and/or product specified"
-        }
+        "error":"No user and/or product specified"
+    }
 
 @app.route('/rating', methods=['POST', 'PUT'])
 def addRatingRoute():
