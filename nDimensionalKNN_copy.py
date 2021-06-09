@@ -215,6 +215,8 @@ def recommendationOfProductsByProduct(product, firstK = 5):
         {
             "$match": {"product":{"$in":related_products}}
         },{
+            "$match": {"product":{"$ne":product}}
+        },{
             "$group": {
                 "_id":"$product",
                 "mean":{"$avg":"$rating"}
@@ -228,9 +230,11 @@ def recommendationOfProductsByProduct(product, firstK = 5):
     len_products = len(products_ordered)
     #cele mai populare produse
     if len_products < firstK:
-        products_ordered += [product["_id"] for product in list(collection.aggregate([
+        products_ordered += [product_["_id"] for product_ in list(collection.aggregate([
         {
             "$match": {"product":{"$nin":products_ordered}}
+        },{
+            "$match": {"product":{"$ne":product}}
         },{
             "$group": {
                 "_id":"$product",
